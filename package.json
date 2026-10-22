@@ -1,6 +1,6 @@
 {
   "name": "vencord-sponsorblock",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "private": true,
   "description": "A Vencord userplugin that hides recognized Discord promotions.",
   "license": "GPL-3.0-or-later",

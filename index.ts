@@ -38,7 +38,7 @@ const settings = definePluginSettings({
     },
     hideNitroPromotions: {
         type: OptionType.BOOLEAN,
-        description: "Hide recognized Nitro upsell banners and trial promotions.",
+        description: "Hide Nitro partner reward popups, recognized upsell banners and trial promotions.",
         default: true,
         onChange: updateStyle
     },
@@ -62,6 +62,20 @@ export default definePlugin({
     authors: [{ name: "Lennydev", id: 0n }],
     tags: ["Appearance", "Utility"],
     settings,
+    patches: [{
+        // Dedicated Nitro partner-marketing renderer, not the shared Popover UI.
+        // Keep its trigger wrapper mounted and omit the entire advertising portal.
+        find: "OPEN_PAYMENT_MODAL=1",
+        replacement: {
+            match: /return(?=\(0,\i\.jsxs\)\(\i\.Fragment,\{children:\[(\(0,\i\.jsx\)\("div",\{children:\i\}\)))/,
+            replace: "return $self.useHideNitroMarketing()?$1:"
+        }
+    }],
+    useHideNitroMarketing() {
+        // Subscribe even when inactive to keep React's hook order consistent.
+        const options = settings.use(["hideNitroPromotions"]);
+        return active && options.hideNitroPromotions;
+    },
     start() {
         active = true;
         updateStyle();
