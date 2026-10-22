@@ -1,0 +1,10 @@
+{
+  "name": "vencord-sponsorblock",
+  "version": "1.0.0",
+  "private": true,
+  "description": "A Vencord userplugin that hides recognized Discord promotions.",
+  "license": "GPL-3.0-or-later",
+  "type": "module",
+  "scripts": { "test": "node tests/regression.mjs" },
+  "devDependencies": { "esbuild": "^0.28.1", "puppeteer-core": "^25.2.1" }
+}
