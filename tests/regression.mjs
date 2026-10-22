@@ -22,7 +22,7 @@ const { outputFiles } = await build({
             api.onLoad({ filter: /.*/, namespace: "mock" }, args => ({ contents: args.path === "@api/Settings"
                 ? `export function definePluginSettings(def) {
                     const store = Object.fromEntries(Object.entries(def).map(([key,value]) => [key,value.default]));
-                    globalThis.testSettings = { store, def };
+                    globalThis.testSettings = { store, def, use: () => store };
                     return globalThis.testSettings;
                 }`
                 : 'export const OptionType = { BOOLEAN: 1 }; export default value => value;'
@@ -55,6 +55,7 @@ try {
         <div class="adCard_abc" data-test id="ad">Ad</div>
         <div contenteditable="true" id="editor">Draft</div>
         <button aria-label="Send a gift" id="gift">Gift</button>
+        <div class="popover_otherhash" role="dialog" id="ordinary-popover">Normal menu</div>
     </body></html>`);
     await page.addScriptTag({ content: outputFiles[0].text });
     const results = await page.evaluate(() => {
@@ -62,6 +63,25 @@ try {
         const hidden = id => getComputedStyle(document.getElementById(id)).display === "none";
         const report = {};
         plugin.start();
+        // Exercise the renderer patch with two different minified identifiers.
+        // These synthetic functions model only the return structure we match.
+        const patch = plugin.patches[0];
+        const match = new RegExp(patch.replacement.match.source.replaceAll("\\i", "(?:[A-Za-z_$][\\w$]*)"));
+        const jsx = (type, props) => ({ type, props });
+        const runtime = { jsx, jsxs: jsx, Fragment: "fragment" };
+        report.marketingPatch = ["b", "anchor"].every(name => {
+            const source = `/* OPEN_PAYMENT_MODAL=1 */ function render(e){let{children:${name}}=e;return(0,r.jsxs)(r.Fragment,{children:[(0,r.jsx)("div",{children:${name}}),(0,r.jsx)("dialog",{children:"promotion"})]})}`;
+            if (!source.includes(patch.find) || !match.test(source)) return false;
+            const patched = source.replace(match, patch.replacement.replace.replaceAll("$self", "TestPlugin.default"));
+            const render = new Function("TestPlugin", "r", `${patched};return render;`)(TestPlugin, runtime);
+            const blocked = render({children:"navigation-trigger"});
+            testSettings.store.hideNitroPromotions = false;
+            const allowed = render({children:"navigation-trigger"});
+            testSettings.store.hideNitroPromotions = true;
+            return blocked.type === "div" && blocked.props.children === "navigation-trigger"
+                && allowed.type === "fragment" && allowed.props.children[1].type === "dialog";
+        });
+        report.ordinaryPopover = !hidden("ordinary-popover");
         report.blocks = ["quest", "sponsor", "promoted", "banner", "trial", "shop", "nitro", "questnav", "gift", "ad"].every(hidden);
         report.preserves = ["ordinary", "friend", "message", "message2", "chatlink", "settings", "word", "header", "avatar", "similar", "editor"].every(id => !hidden(id));
         const late = document.createElement("div");
